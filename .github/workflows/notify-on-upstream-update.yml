@@ -1,47 +1,56 @@
+name: Notify on Upstream Updates
+
+on:
+  workflow_dispatch:  # Allows manual triggering
+  schedule:
+    - cron: "0 * * * *" # Runs every hour
+
 jobs:
   check-upstream-updates:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
       - name: Set up repository
         run: |
-          git init
-          git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-          git remote add upstream https://github.com/UPSTREAM_USERNAME/UPSTREAM_REPO.git
+          echo "Setting up repository..."
+          git remote add upstream https://github.com/jaiswaladi246/Petclinic.git
+          git fetch upstream
 
       - name: Check for updates in upstream
+        id: check-for-updates
         run: |
           echo "Fetching updates from upstream..."
-          git fetch upstream
-          git log HEAD..upstream/main --oneline > updates.txt || echo ""
-          if [ -s updates.txt ]; then
-              echo "New updates found in the upstream repository."
-              cat updates.txt
+          UPDATES=$(git log HEAD..upstream/main --oneline || true)
+          if [ -n "$UPDATES" ]; then
+            echo "New updates found in the upstream repository."
+            echo "UPDATES=$UPDATES" >> $GITHUB_ENV
           else
-              echo "No updates in the upstream repository."
-              exit 0
+            echo "No updates in the upstream repository."
+            echo "UPDATES=" >> $GITHUB_ENV
           fi
 
       - name: Send email notification
-        if: success() && steps.check-for-updates.outputs.UPDATES != ''
+        if: env.UPDATES != ''
         env:
           EMAIL_SENDER: ${{ secrets.EMAIL_SENDER }}
           EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
           EMAIL_RECEIVER: ${{ secrets.EMAIL_RECEIVER }}
+          UPDATES: ${{ env.UPDATES }}
         run: |
           echo "Sending email notification..."
           python3 - <<EOF
           import smtplib
           from email.mime.text import MIMEText
 
-          sender = "${{ secrets.EMAIL_SENDER }}"
-          receiver = "${{ secrets.EMAIL_RECEIVER }}"
-          password = "${{ secrets.EMAIL_PASSWORD }}"
+          sender = "${EMAIL_SENDER}"
+          receiver = "${EMAIL_RECEIVER}"
+          password = "${EMAIL_PASSWORD}"
           subject = "Updates Detected in Upstream Repository"
 
-          with open('updates.txt', 'r') as f:
-              updates = f.read()
-
+          updates = """${UPDATES}"""
           body = f"The following updates were detected in the upstream repository:\n\n{updates}"
 
           msg = MIMEText(body)
