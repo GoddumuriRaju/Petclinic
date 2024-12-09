@@ -16,7 +16,7 @@ jobs:
       - name: Set up repository
         run: |
           echo "Setting up repository..."
-          git remote add upstream https://github.com/UPSTREAM_USERNAME/UPSTREAM_REPO.git
+          git remote add upstream https://github.com/jaiswaladi246/Petclinic.git
           git fetch upstream
 
       - name: Check for updates in upstream
